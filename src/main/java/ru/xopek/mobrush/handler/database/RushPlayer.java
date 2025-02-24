@@ -7,9 +7,9 @@ import lombok.Setter;
 @Getter @Setter @AllArgsConstructor
 public class RushPlayer {
     private final String uuid;
-    private final String name;
     private int money;
     private int xp;
+    private int rebirth;
 
     public void increaseMoney(int amount) {
         this.money += amount;
@@ -25,5 +25,9 @@ public class RushPlayer {
 
     public void decreaseXP(int amount) {
         this.xp -= amount;
+    }
+
+    public void increaseRebirth(int amount) {
+        this.rebirth += amount;
     }
 }

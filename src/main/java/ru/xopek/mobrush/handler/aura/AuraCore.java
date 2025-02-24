@@ -20,15 +20,20 @@ import java.util.stream.Collectors;
 @Getter
 public class AuraCore {
     private final HashMap<String, Aura> auraMap = new HashMap<>();
-    private NamespacedKey auraTag = NamespacedKey.minecraft("rushaura");
+    private final NamespacedKey auraTag = NamespacedKey.minecraft("rushaura");
 
-    public void setup() {
+    private final MobRush inst;
+
+    public AuraCore(MobRush inst) {
+        this.inst = inst;
+
         /**
          * Подгружаем ауры из конфига..
          */
 
-        FileConfiguration config = MobRush.getInst().getConfig();
+        FileConfiguration config = inst.getConfig();
         ConfigurationSection allAurasSection = config.getConfigurationSection("auras");
+
         for (String auraKey : allAurasSection.getKeys(false)) {
             ConfigurationSection auraSection = allAurasSection.getConfigurationSection(auraKey);
 
@@ -65,12 +70,12 @@ public class AuraCore {
 
     public Aura getAuraFromItem(ItemStack item) {
         if (item != null && item.getType() == Material.MUSIC_DISC_PIGSTEP) {
-            AuraCore auraCore = MobRush.getInst().getAuraCore();
+            AuraCore auraCore = inst.getAuraCore();
             PersistentDataContainer pdtAura = item.getItemMeta().getPersistentDataContainer();
 
             if (pdtAura.has(auraCore.getAuraTag(), PersistentDataType.STRING)) {
-                String auraId = pdtAura.get(auraCore.getAuraTag(), PersistentDataType.STRING);
-                return auraCore.getAuraMap().get(auraId);
+                String auraKey = pdtAura.get(auraCore.getAuraTag(), PersistentDataType.STRING);
+                return auraCore.getAuraMap().get(auraKey);
             }
         }
         return null;

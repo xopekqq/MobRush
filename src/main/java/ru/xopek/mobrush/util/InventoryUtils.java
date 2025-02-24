@@ -9,6 +9,9 @@ import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
+import ru.xopek.mobrush.MobRush;
+import ru.xopek.mobrush.handler.database.MongoDB;
+import ru.xopek.mobrush.handler.database.RushPlayer;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -22,26 +25,37 @@ public class InventoryUtils {
     public static String title = "Магазин - MobRush";
     public static NamespacedKey itemTag = NamespacedKey.minecraft("rushitem");
 
-    public static Inventory buildShop(Player player) {
+    public static void buildShop(Player player, MobRush inst) {
         Inventory inventory = Bukkit.createInventory(null, 45, title);
 
         int healthPrice = getHealthPrice(player.getMaxHealth());
 
-        inventory.setItem(21,
+        inventory.setItem(20,
                 buildItem(Material.REDSTONE, "&c[Увеличить здоровье]",
-                        List.of("&fЦена: &a"+ healthPrice * 10 +"&f монет и &9"+ healthPrice +"&f опыта"), "health"));
+                        List.of("&fЦена: &a" + healthPrice * 10 + "&f монет и &9" + healthPrice + "&f опыта"), "health"));
 
-        inventory.setItem(23,
+        Bukkit.getScheduler().runTaskAsynchronously(inst, () -> {
+            MongoDB database = inst.getDatabase();
+            RushPlayer rushPlayer = database.getPlayer(player.getUniqueId().toString());
+
+            int rebirth = rushPlayer.getRebirth();
+
+            inventory.setItem(22,
+                    buildItem(Material.NETHER_STAR, "&e[Сделать престиж]",
+                            List.of("&fУ вас &e" + rebirth + "&f перерождений!", "&f", "&fЦена: &a" + (rebirth * 125) + "&f монет и &9" + (rebirth * 75) + "&f опыта"), "rebirth"));
+        });
+
+        inventory.setItem(24,
                 buildItem(Material.MUSIC_DISC_PIGSTEP, "&c[Купить рандом ауру]",
                         List.of("&fЦена: &a500&f монет и &9225&f опыта"), "aura"));
 
         for (int i = 0; i < 45; i++) {
-            if (i != 21 && i != 23) inventory.setItem(i, buildGlass());
+            if (i != 20 && i != 22 && i != 24)
+                inventory.setItem(i, buildGlass());
         }
 
         player.openInventory(inventory);
 
-        return inventory;
     }
 
     public static int getHealthPrice(double health) {

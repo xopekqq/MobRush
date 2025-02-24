@@ -1,5 +1,7 @@
 package ru.xopek.mobrush.handler.rush;
 
+import org.bukkit.Bukkit;
+import org.bukkit.NamespacedKey;
 import org.bukkit.entity.HumanEntity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
@@ -11,12 +13,14 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
 import ru.xopek.mobrush.MobRush;
 import ru.xopek.mobrush.handler.aura.Aura;
+import ru.xopek.mobrush.handler.database.MongoDB;
 import ru.xopek.mobrush.handler.database.RushPlayer;
-import ru.xopek.mobrush.handler.database.SQLite;
 import ru.xopek.mobrush.util.InventoryUtils;
-import ru.xopek.mobrush.util.MobUtils;
+import ru.xopek.mobrush.util.MathUtils;
 import ru.xopek.mobrush.util.StringAPI;
 
 public class RushEvents implements Listener {
@@ -26,16 +30,24 @@ public class RushEvents implements Listener {
      *  ивентами для мини игры.
      */
 
+    private final MobRush inst;
+
+    public RushEvents(MobRush inst) {
+        this.inst = inst;
+    }
+
     @EventHandler
     public void onEntityDeath(EntityDamageByEntityEvent e) {
         if (e.getDamager() instanceof Player player && e.getEntity() instanceof LivingEntity target) {
             PersistentDataContainer pdt = target.getPersistentDataContainer();
 
-            if (pdt.has(MobUtils.mobTag, PersistentDataType.STRING)) {
-                String name = pdt.get(MobUtils.mobTag, PersistentDataType.STRING);
+            NamespacedKey mobTag = inst.getMobCore().getMobTag();
+
+            if (pdt.has(mobTag, PersistentDataType.STRING)) {
+                String name = pdt.get(mobTag, PersistentDataType.STRING);
 
                 ItemStack item = player.getInventory().getItem(8);
-                Aura aura = MobRush.getInst().getAuraCore().getAuraFromItem(item);
+                Aura aura = inst.getAuraCore().getAuraFromItem(item);
 
                 if (aura != null && aura.getAttributes().getDamage() > 0) {
                     double multiplier = (aura.getAttributes().getDamage() + 100.0) / 100.0;
@@ -53,44 +65,43 @@ public class RushEvents implements Listener {
         LivingEntity target = e.getEntity();
         PersistentDataContainer pdt = target.getPersistentDataContainer();
 
-        if (pdt.has(MobUtils.mobTag, PersistentDataType.STRING)) {
+        NamespacedKey mobReward = inst.getMobCore().getMobReward();
+
+        if (pdt.has(mobReward, PersistentDataType.INTEGER)) {
             Player killer = target.getKiller();
             String uuid = killer != null ? killer.getUniqueId().toString() : null;
 
             if (uuid != null) {
-                MobRush inst = MobRush.getInst();
 
-                SQLite database = inst.getDatabase();
-                RushPlayer rushPlayer = database.getPlayer(uuid);
+                Bukkit.getScheduler().runTaskAsynchronously(inst, () -> {
+                    MongoDB database = inst.getDatabase();
+                    RushPlayer rushPlayer = database.getPlayer(uuid);
 
-                if (rushPlayer == null) {
-                    rushPlayer = new RushPlayer(uuid, killer.getName(), 0, 0);
-                }
+                    Integer reward = pdt.get(mobReward, PersistentDataType.INTEGER);
+                    if (reward != null) {
+                        ItemStack item = killer.getInventory().getItem(8);
+                        Aura aura = inst.getAuraCore().getAuraFromItem(item);
 
-                Integer reward = pdt.get(MobUtils.mobReward, PersistentDataType.INTEGER);
-                if (reward != null) {
-                    ItemStack item = killer.getInventory().getItem(8);
-                    Aura aura = MobRush.getInst().getAuraCore().getAuraFromItem(item);
+                        double moneyMultiplier = 1.0;
+                        double xpMultiplier = 1.0;
 
-                    double moneyMultiplier = 1.0;
-                    double xpMultiplier = 1.0;
+                        if (aura != null) {
+                            Aura.Attributes attributes = aura.getAttributes();
 
-                    if (aura != null) {
-                        Aura.Attributes attributes = aura.getAttributes();
+                            if (attributes.getMoney() > 0) moneyMultiplier = (attributes.getMoney() + 100.0) / 100.0;
+                            if (attributes.getXp() > 0) xpMultiplier = (attributes.getXp() + 100.0) / 100.0;
+                        }
 
-                        if (attributes.getMoney() > 0) moneyMultiplier = (attributes.getMoney() + 100.0) / 100.0;
-                        if (attributes.getXp() > 0) xpMultiplier = (attributes.getXp() + 100.0) / 100.0;
+                        rushPlayer.increaseMoney((int) Math.round(reward * moneyMultiplier));
+                        rushPlayer.increaseXP((int) Math.round(MathUtils.getXP(e.getEntityType(), inst.getRushCore().getDifficulty()) * xpMultiplier));
+
+                        database.savePlayer(rushPlayer);
+
+                        killer.sendMessage(StringAPI.asColor("&#00FF00[$]&f Вы получили &#00FF00" + reward * moneyMultiplier + "&f монет за убийство!"));
                     }
 
-                    rushPlayer.increaseMoney((int) Math.round(reward * moneyMultiplier));
-                    rushPlayer.increaseXP((int) Math.round(MobUtils.getXP(e.getEntityType()) * xpMultiplier));
-
-                    database.savePlayer(rushPlayer);
-
-                    killer.sendMessage(StringAPI.asColor("&#00FF00[$]&f Вы получили &#00FF00" + reward * moneyMultiplier + "&f монет за убийство!"));
-                }
-
-                inst.getRushCore().getEntities().remove(target);
+                    inst.getRushCore().getEntities().remove(target);
+                });
             }
         }
     }
@@ -111,39 +122,60 @@ public class RushEvents implements Listener {
             HumanEntity whoClicked = e.getWhoClicked();
             String uuid = whoClicked.getUniqueId().toString();
 
-            SQLite database = MobRush.getInst().getDatabase();
-            RushPlayer rushPlayer = database.getPlayer(uuid);
+            Bukkit.getScheduler().runTaskAsynchronously(inst, () -> {
+                MongoDB database = inst.getDatabase();
+                RushPlayer rushPlayer = database.getPlayer(uuid);
 
-            if (rushPlayer == null) {
-                rushPlayer = new RushPlayer(uuid, whoClicked.getName(), 0, 0);
-            }
+                int money = rushPlayer.getMoney();
+                int xp = rushPlayer.getXp();
 
-            switch (name) {
-                case "health" -> {
-                    int healthPrice = InventoryUtils.getHealthPrice(whoClicked.getMaxHealth());
+                switch (name) {
+                    case "health" -> {
+                        int healthPrice = InventoryUtils.getHealthPrice(whoClicked.getMaxHealth());
 
-                    if (rushPlayer.getMoney() >= (healthPrice * 10) && rushPlayer.getXp() >= healthPrice) {
-                        rushPlayer.decreaseMoney(healthPrice * 10);
-                        database.savePlayer(rushPlayer);
+                        if (money >= (healthPrice * 10) && xp >= healthPrice) {
+                            rushPlayer.decreaseMoney(healthPrice * 10);
+                            database.savePlayer(rushPlayer);
 
-                        whoClicked.setMaxHealth(whoClicked.getMaxHealth() + 2);
-                        InventoryUtils.buildShop((Player) whoClicked);
+                            whoClicked.setMaxHealth(whoClicked.getMaxHealth() + 2);
+                            Bukkit.getScheduler().runTask(inst, () -> InventoryUtils.buildShop((Player) whoClicked, inst));
 
-                        whoClicked.sendMessage("Успешная покупка!");
+                            whoClicked.sendMessage("Успешная покупка!");
+                        }
                     }
-                }
-                case "aura" -> {
-                    if (rushPlayer.getMoney() >= 500 && rushPlayer.getXp() >= 225) {
-                        rushPlayer.decreaseMoney(500);
-                        database.savePlayer(rushPlayer);
+                    case "aura" -> {
+                        if (money >= 500 && xp >= 225) {
+                            rushPlayer.decreaseMoney(500);
+                            database.savePlayer(rushPlayer);
 
-                        whoClicked.getInventory().addItem(MobRush.getInst().getAuraCore().getRandomAuraItemStack());
-                        InventoryUtils.buildShop((Player) whoClicked);
+                            whoClicked.getInventory().addItem(inst.getAuraCore().getRandomAuraItemStack());
+                            Bukkit.getScheduler().runTask(inst, () -> InventoryUtils.buildShop((Player) whoClicked, inst));
 
-                        whoClicked.sendMessage("Успешная покупка!");
+                            whoClicked.sendMessage("Успешная покупка!");
+                        }
                     }
-                }
-            }
+                    case "rebirth" -> {
+                        int rebirth = rushPlayer.getRebirth();
+
+                        if (money >= (rebirth * 125) && xp >= (rebirth * 75)) {
+                            rushPlayer.setMoney(0);
+                            rushPlayer.setXp(0);
+                            rushPlayer.increaseRebirth(1);
+
+                            database.savePlayer(rushPlayer);
+
+                            Bukkit.getScheduler().runTask(inst, () -> {
+                                PotionEffect potionEffect = new PotionEffect(PotionEffectType.INCREASE_DAMAGE, rebirth * 600, rebirth);
+                                whoClicked.addPotionEffect(potionEffect);
+
+                                InventoryUtils.buildShop((Player) whoClicked, inst);
+                            });
+
+                            whoClicked.sendMessage("Успешная покупка!");
+                        }
+                    }
+                 }
+            });
         }
     }
 }
