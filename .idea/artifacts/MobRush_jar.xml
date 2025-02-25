@@ -1,0 +1,12 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="MobRush:jar">
+    <output-path>$PROJECT_DIR$/../../../server/plugins</output-path>
+    <root id="archive" name="MobRush.jar">
+      <element id="module-output" name="MobRush" />
+      <element id="extracted-dir" path="$MAVEN_REPOSITORY$/org/mongodb/bson/5.3.0/bson-5.3.0.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$MAVEN_REPOSITORY$/org/mongodb/mongodb-driver-core/5.3.0/mongodb-driver-core-5.3.0.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$MAVEN_REPOSITORY$/org/mongodb/mongodb-driver-sync/5.3.0/mongodb-driver-sync-5.3.0.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$MAVEN_REPOSITORY$/org/mongodb/bson-record-codec/5.3.0/bson-record-codec-5.3.0.jar" path-in-jar="/" />
+    </root>
+  </artifact>
+</component>

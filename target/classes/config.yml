@@ -1,0 +1,22 @@
+mongodb:
+  uri: "mongodb+srv://xopekqq:cy8lCXyUPLccY07y@mobrushcluster.pvdwe.mongodb.net/?retryWrites=true&w=majority&appName=MobRushCluster"
+
+auras:
+  xp1:
+    name: "&#FF0000[⭐]&f Аура Опыта I"
+    lore:
+      - "&9+20% к опыту"
+    attributes:
+      xp: 20
+  money1:
+    name: "&#FF0000[⭐]&f Аура Монет II"
+    lore:
+      - "&9+50% к деньгам"
+    attributes:
+      money: 50
+  damage1:
+    name: "&#FF0000[⭐]&f Аура Урона IV"
+    lore:
+      - "&9+90% к урону по мобам"
+    attributes:
+      damage: 90

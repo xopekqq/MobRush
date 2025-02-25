@@ -1,0 +1,7 @@
+name: MobRush
+version: '${project.version}'
+main: ru.xopek.mobrush.MobRush
+api-version: '1.16'
+author: Xopek
+commands:
+  mobrush: {}
